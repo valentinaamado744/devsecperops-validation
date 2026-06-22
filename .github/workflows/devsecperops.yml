@@ -85,14 +85,17 @@ jobs:
           pip install -r requirements.txt
           nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           sleep 8
+          curl -s http://localhost:8000/health || true
 
       - name: OWASP ZAP Baseline Scan
         continue-on-error: true
-        uses: zaproxy/action-baseline@v0.12.0
-        with:
-          target: 'http://localhost:8000'
-          cmd_options: '-J zap-report.json'
-          fail_action: false
+        run: |
+          mkdir -p zap-out && chmod 777 zap-out
+          docker run --rm --network host -v "$(pwd)/zap-out:/zap/wrk:rw" \
+            ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
+            -t http://localhost:8000 -J zap-report.json -I || true
+          cp zap-out/zap-report.json zap-report.json 2>/dev/null || echo '{}' > zap-report.json
+          echo "--- Resumen ZAP ---"; ls -la zap-out
 
       - name: Subir reporte ZAP
         if: always()
@@ -118,15 +121,20 @@ jobs:
           pip install -r requirements.txt
           nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           sleep 8
+          curl -s http://localhost:8000/health || true
+
+      - name: Instalar k6
+        run: |
+          curl -fsSL https://github.com/grafana/k6/releases/download/v0.50.0/k6-v0.50.0-linux-amd64.tar.gz -o k6.tar.gz
+          tar -xzf k6.tar.gz
+          sudo mv k6-v0.50.0-linux-amd64/k6 /usr/local/bin/k6
+          k6 version
 
       - name: Ejecutar prueba de carga k6
-        uses: grafana/k6-action@v0.3.1
-        with:
-          filename: k6/load-test.js
-          flags: --summary-export=k6-summary.json
+        continue-on-error: true
+        run: k6 run k6/load-test.js
         env:
           BASE_URL: http://localhost:8000
-        continue-on-error: true
 
       - name: Subir resumen k6
         if: always()
