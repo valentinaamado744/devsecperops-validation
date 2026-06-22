@@ -51,6 +51,17 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="Usuario no encontrado")
     return user
 
+@app.get("/", response_class=HTMLResponse)
+def index():
+    return """<html><body>
+    <h1>TaskManager API</h1>
+    <ul>
+      <li><a href="/health">health</a></li>
+      <li><a href="/docs">docs</a></li>
+      <li><a href="/echo?message=hello">echo</a></li>
+      <li><a href="/reports">reports</a></li>
+    </ul>
+    </body></html>"""
 
 @app.get("/health")
 def health():
