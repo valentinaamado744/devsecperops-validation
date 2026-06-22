@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.db
+.coverage
+coverage.xml
+reports/
+*-report.json
+*-summary.json
+gates-summary.json
+.pytest_cache/

@@ -1,0 +1,30 @@
+# Entorno local de validación del modelo DevSecPerOps.
+# Levanta la API, SonarQube y la pila de observabilidad (Prometheus + Grafana).
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+
+  sonarqube:
+    image: sonarqube:10-community
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
