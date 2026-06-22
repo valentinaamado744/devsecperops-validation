@@ -36,3 +36,9 @@ export default function () {
 
   sleep(1);
 }
+
+export function handleSummary(data) {
+  return {
+    'k6-summary.json': JSON.stringify(data, null, 2),
+  };
+}
