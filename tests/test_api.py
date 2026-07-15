@@ -121,6 +121,9 @@ def test_reports_returns_summary():
 def test_security_headers_present():
     # Confirma que el middleware de cabeceras de seguridad está activo.
     resp = client.get("/health")
-    assert resp.headers.get("content-security-policy") == "default-src 'self'"
+    csp = resp.headers.get("content-security-policy", "")
+    assert "default-src 'self'" in csp
+    assert "frame-ancestors 'none'" in csp
+    assert "object-src 'none'" in csp
     assert resp.headers.get("x-frame-options") == "DENY"
     assert resp.headers.get("x-content-type-options") == "nosniff"
