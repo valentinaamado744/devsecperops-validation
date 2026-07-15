@@ -168,13 +168,33 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Restaurar histórico de rendimiento (umbral adaptativo)
+        # El histórico de p95 se persiste entre ejecuciones de la misma rama
+        # para calibrar el Performance Gate (ver scripts/check_gates.py).
+        # La clave incluye run_id para forzar el guardado al final del job;
+        # restore-keys recupera el histórico más reciente de la misma rama.
+        uses: actions/cache@v4
+        with:
+          path: .metrics
+          key: perf-history-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            perf-history-${{ github.ref_name }}-
+
       - name: Evaluar Quality Gates del modelo
         run: |
           python scripts/check_gates.py \
             --coverage artifacts/coverage/coverage.xml \
             --dependency artifacts/dependency-check/dependency-check-report.json \
             --zap artifacts/zap-report/zap-report.json \
-            --k6 artifacts/k6-summary/k6-summary.json
+            --k6 artifacts/k6-summary/k6-summary.json \
+            --history .metrics/performance_history.json
+
+      - name: Subir histórico de rendimiento actualizado
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-history
+          path: .metrics/performance_history.json
 
       - name: Subir resumen de gobernanza
         if: always()

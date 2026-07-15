@@ -93,8 +93,15 @@ python scripts/check_gates.py \
   --coverage coverage.xml \
   --dependency reports/dependency-check-report.json \
   --zap zap-report.json \
-  --k6 k6-summary.json
+  --k6 k6-summary.json \
+  --history .metrics/performance_history.json
 ```
+
+> El Performance Gate usa un umbral **adaptativo** (media + 3σ del histórico de
+> p95), calibrado a partir de `.metrics/performance_history.json`. Mientras no
+> haya al menos 5 muestras acumuladas, se aplica un umbral estático de
+> salvaguarda (500 ms). En CI, este archivo se persiste entre ejecuciones de la
+> misma rama mediante `actions/cache` (ver el workflow).
 
 ## 6. DATOS A CAPTURAR Y ENVIARME (para redactar 4.2.3 y 4.2.4)
 
