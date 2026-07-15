@@ -86,16 +86,26 @@ jobs:
           nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           sleep 8
           curl -s http://localhost:8000/health || true
+          curl -s http://localhost:8000/openapi.json -o /dev/null -w "openapi.json: %{http_code}\n"
 
-      - name: OWASP ZAP Baseline Scan
+      - name: OWASP ZAP Active Scan (API)
+        # Sustituye al análisis baseline (pasivo). zap-api-scan.py usa la
+        # especificación OpenAPI de la propia API (expuesta por FastAPI en
+        # /openapi.json) para conocer endpoints y parámetros, y lanza contra
+        # ellos un análisis ACTIVO (envío real de payloads: SQLi, XSS, etc.),
+        # no solo observación pasiva del tráfico. La API corre de forma
+        # efímera y aislada en este runner de CI (SQLite en memoria, sin
+        # datos reales), por lo que el ataque activo no supone riesgo alguno.
         continue-on-error: true
+        timeout-minutes: 20
         run: |
           mkdir -p zap-out && chmod 777 zap-out
           docker run --rm --network host -v "$(pwd)/zap-out:/zap/wrk:rw" \
-            ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
-            -t http://localhost:8000 -J zap-report.json -I || true
+            ghcr.io/zaproxy/zaproxy:stable zap-api-scan.py \
+            -t http://localhost:8000/openapi.json -f openapi \
+            -J zap-report.json -I || true
           cp zap-out/zap-report.json zap-report.json 2>/dev/null || echo '{}' > zap-report.json
-          echo "--- Resumen ZAP ---"; ls -la zap-out
+          echo "--- Resumen ZAP (active scan) ---"; ls -la zap-out
 
       - name: Subir reporte ZAP
         if: always()
