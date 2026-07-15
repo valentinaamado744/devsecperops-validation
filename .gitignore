@@ -8,3 +8,4 @@ reports/
 *-summary.json
 gates-summary.json
 .pytest_cache/
+.metrics/

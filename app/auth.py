@@ -1,20 +1,22 @@
 """Autenticación basada en JWT.
 
-NOTA (defecto sembrado - SAST): la clave secreta está embebida en el código
-(hardcoded secret). SonarQube lo reporta como vulnerabilidad de seguridad.
-En un entorno real debería leerse de una variable de entorno o de un gestor
-de secretos. Se mantiene así de forma intencionada para demostrar el control
-SAST y el Quality Gate del modelo DevSecPerOps.
+REMEDIADO: el secreto ya no está embebido en el código fuente. Se lee de la
+variable de entorno SECRET_KEY, tal como exige la gestión segura de secretos.
+Si la variable no está definida (por ejemplo, en un entorno de CI efímero
+donde no se requiere persistencia de sesiones entre ejecuciones) se genera un
+valor aleatorio de un solo uso; en producción, SECRET_KEY debe configurarse
+explícitamente mediante un gestor de secretos.
 """
 
+import os
+import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-# DEFECTO SEMBRADO: secreto embebido en el código fuente
-SECRET_KEY = "supersecretkey1234567890"  # noqa: S105
+SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 

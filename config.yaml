@@ -1,6 +1,5 @@
 app_name: "TaskManager API"
 version: "1.0.0"
 page_size: 50
-# Latencia artificial (ms) inyectada en /reports para demostrar el Performance Gate.
-# Poner en 0 tras la remediación para que el gate de rendimiento pase.
-report_delay_ms: 1200
+# REMEDIADO: latencia artificial eliminada para que el Performance Gate pase.
+report_delay_ms: 0

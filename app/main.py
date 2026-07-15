@@ -13,6 +13,7 @@ algo real:
 Los defectos están marcados con el comentario "DEFECTO SEMBRADO".
 """
 
+import html
 import time
 
 from fastapi import Depends, FastAPI, Header, HTTPException
@@ -20,6 +21,7 @@ from fastapi.responses import HTMLResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app import models, schemas
 from app.auth import (
@@ -37,6 +39,29 @@ app = FastAPI(title=CONFIG.get("app_name", "TaskManager API"))
 
 # Observabilidad: expone /metrics para Prometheus
 Instrumentator().instrument(app).expose(app)
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """REMEDIADO: añade las cabeceras de seguridad que ZAP reportaba ausentes
+    (CSP, X-Frame-Options, X-Content-Type-Options, Permissions-Policy y las
+    cabeceras Cross-Origin-*), mitigando XSS, clickjacking y MIME-sniffing."""
+
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; object-src 'none'; base-uri 'self'; "
+            "frame-ancestors 'none'; form-action 'self'"
+        )
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 
 def get_current_user(
@@ -153,13 +178,12 @@ def list_tasks(
 def search_tasks(q: str, db: Session = Depends(get_db)):
     """Búsqueda de tareas por título.
 
-    DEFECTO SEMBRADO (inyección SQL): la consulta se construye concatenando
-    directamente la entrada del usuario. SonarQube lo reporta como vulnerabilidad
-    de seguridad (SQL injection). La forma correcta sería usar parámetros enlazados.
+    REMEDIADO: la consulta usa un parámetro enlazado (bind parameter) en lugar
+    de concatenar la entrada del usuario, eliminando el vector de inyección SQL
+    detectado tanto por SAST (SonarQube) como por DAST (OWASP ZAP).
     """
-    # DEFECTO SEMBRADO: concatenación directa de entrada de usuario
-    query = "SELECT id, title, status FROM tasks WHERE title LIKE '%" + q + "%'"
-    rows = db.execute(text(query)).fetchall()
+    query = text("SELECT id, title, status FROM tasks WHERE title LIKE :pattern")
+    rows = db.execute(query, {"pattern": f"%{q}%"}).fetchall()
     return [{"id": r[0], "title": r[1], "status": r[2]} for r in rows]
 
 
@@ -167,11 +191,13 @@ def search_tasks(q: str, db: Session = Depends(get_db)):
 def echo(message: str = ""):
     """Devuelve el mensaje recibido.
 
-    DEFECTO SEMBRADO (XSS reflejado): el parámetro se inserta sin escapar en una
-    respuesta HTML. OWASP ZAP lo detecta como Cross-Site Scripting reflejado.
+    REMEDIADO: el parámetro se escapa (html.escape) antes de insertarse en la
+    respuesta HTML, neutralizando el vector de XSS reflejado. Junto con la
+    cabecera Content-Security-Policy añadida por el middleware, se aplica
+    defensa en profundidad (sanitización de entrada + mitigación en el navegador).
     """
-    # DEFECTO SEMBRADO: input reflejado sin sanitizar
-    return f"<html><body><h3>Mensaje: {message}</h3></body></html>"
+    safe_message = html.escape(message)
+    return f"<html><body><h3>Mensaje: {safe_message}</h3></body></html>"
 
 
 @app.get("/reports")

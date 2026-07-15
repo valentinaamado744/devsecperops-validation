@@ -8,10 +8,9 @@ bcrypt==4.0.1
 prometheus-fastapi-instrumentator==7.0.0
 httpx==0.27.0
 
-# DEFECTO SEMBRADO (dependencia vulnerable):
-# PyYAML 5.3.1 contiene la vulnerabilidad CVE-2020-14343.
-# OWASP Dependency-Check la reporta y el Dependency Gate se dispara.
-PyYAML==5.3.1
+# REMEDIADO: PyYAML actualizado para eliminar CVE-2020-14343
+# (presente en 5.3.1). El Dependency Gate ya no debería dispararse por esta dependencia.
+PyYAML==6.0.2
 
 # Dependencias de test
 pytest==8.2.2
